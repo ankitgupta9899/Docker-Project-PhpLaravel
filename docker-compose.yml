@@ -1,0 +1,90 @@
+version: '3.0'
+services:
+
+#  Nginx Service
+ webserver:
+   image: nginx:1.15
+   container_name: webserver
+   restart: always
+   tty: true
+   volumes:
+    - ./nginx/conf.d/:/etc/nginx/conf.d/
+    - ./www/:/var/www/html
+   ports:
+    - "80:80"
+    - "443:443"
+   networks:
+    - app-network
+
+
+#MySQL Service
+ db:
+   container_name: db
+   image: mariadb:10.1
+   restart: always
+   tty: true
+   env_file:
+    - ./.env/mysql.env
+   ports:
+    - "3306:3306"
+   networks:
+    - app-network
+   volumes:
+    - ./db/db_data:/var/lib/mysql
+    - ./db/conf.d:/etc/mysql/conf.d
+    - ./mysql/my.cnf:/etc/mysql/my.cnf
+
+#Phpmyadmin Service
+ phpmyadmin:
+   depends_on:
+     - db
+   image: phpmyadmin/phpmyadmin
+   container_name: phpmyadmin
+   restart: always
+   networks:
+     - app-network
+   ports:
+     - '8081:80'
+   environment:
+    PMA_HOST: db
+
+
+#PHP Service
+ app:
+   build: ./php
+   container_name: app
+   restart: always
+   depends_on:
+   - db
+   - redis
+   tty: true
+   working_dir: /var/www/html
+   networks:
+    - app-network
+   volumes:
+    - ./www/:/var/www/html
+    - ./php/local.ini:/usr/local/etc/php/conf.d/local.ini
+   ports:
+    - '9000'
+
+#Redis Service
+
+ redis:
+   image: redis
+   container_name: redis
+   restart: always
+   volumes:
+     - ./redis/redis-data:/var/lib/redis
+     - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+   expose:
+     - 6379
+   ports:
+    - "6379:6379"
+   networks:
+    - app-network
+
+
+#Docker Networks
+networks:
+ app-network:
+   driver: bridge
